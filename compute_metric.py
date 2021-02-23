@@ -21,14 +21,14 @@ def compute_metric(scores, groud_truth, conf):
                 # print '{}:{}'.format(m.get_title(), m.metric),
                 m.stop()
                 metric_name[name].append(m.metric)
-                # if conf.test:
-                #     dirs = 'RQ3/{}/{}/'.format(conf.data_name, conf.model_name)
-                #     if not os.path.exists(dirs):
-                #         os.makedirs(dirs)
-                #     filename = dirs+'{}_{}.npy'.format(name, topk[i])
-                #     T = m.each.cpu().numpy()
-                #     if os.path.isfile(filename):
-                #         tmp = np.load(filename)
-                #         T = np.concatenate([tmp, T], 0)
-                #     np.save(filename, T)
+                if conf.test == 1:
+                    dirs = 'DisGCN_RQ3/{}/random/inf_test/'.format(conf.model_name)
+                    if not os.path.exists(dirs):
+                        os.makedirs(dirs)
+                    filename = dirs+'{}_{}.npy'.format(name, topk[i])
+                    T = m.each.cpu().numpy()
+                    if os.path.isfile(filename):
+                        tmp = np.load(filename)
+                        T = np.concatenate([tmp, T], 0)
+                    np.save(filename, T)
     return metric_name

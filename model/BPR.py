@@ -24,7 +24,7 @@ class bpr(base_model):
         # from_friend = tf.sparse.sparse_dense_matmul(social_neighbors_sparse_matrix, self.user_embedding)
         # pred = self.conf.pred
         # if pred == 0:
-        self.predict()
+        self.prediction = self.predict()
         # elif pred == 1:
         #     self.predict(from_friend)
         # elif pred == 2:

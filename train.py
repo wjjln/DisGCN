@@ -69,6 +69,12 @@ def test(model, conf, d_test_eva, sess, d_train, log):
     return metrics
 
 def start(conf, data, model_name):
+    if conf.data_name in ['beibei']:
+        vis_port = 1496
+    elif conf.data_name in ['BeiBei2']:
+        vis_port = 1469
+    elif conf.data_name in ['BeiBei']:
+        vis_port = 9641
     log_dir = os.path.join(os.getcwd(), 'log')
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
@@ -129,7 +135,7 @@ def start(conf, data, model_name):
         else:
             name = conf.model_name
         if not conf.test:
-            vis = Visdom(port=9641, env='{}_reg{}lr{}-{}-dim{}'.format(name, reg, lr, conf.test_name, conf.dimension))
+            vis = Visdom(port=vis_port, env='{}_reg{}lr{}-{}-dim{}'.format(name, reg, lr, conf.test_name, conf.dimension))
         # Start Training !!!
         if conf.test == 2:
             After_Metric = {'Recall': [], 'NDCG': [], 'MRR': []}

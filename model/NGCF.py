@@ -84,7 +84,7 @@ class ngcf(base_model):
         item_emb = tf.concat(E_i, 1)
         # self.user_emb, self.item_emb = tf.split(self.E_emb, [self.num_users, self.num_items], 0)
 
-        self.predict(user_emb, item_emb)
+        self.prediction = self.predict(user_emb, item_emb)
         self.loss = self.BPRloss(user_emb, item_emb)
         # + tf.losses.get_regularization_loss()
         self.opt = tfv1.train.AdamOptimizer(self.learning_rate).minimize(self.loss)

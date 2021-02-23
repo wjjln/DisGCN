@@ -2,15 +2,15 @@ from collections import defaultdict
 from visdom import Visdom
 import numpy as np
 
-model_name = 'bpr'
-test_name = 'fs-neg4'
-data_name = 'BeiBei'
-log_path = '../{}_log/{}/dim64_{}.log'.format(data_name, model_name, test_name)
+model_name = 'disbpr'
+test_name = 'fs-l2sum-g'
+data_name = 'BeiBei2'
+log_path = '{}_log/{}/dim32_{}.log'.format(data_name, model_name, test_name)
 data = defaultdict(list)
 model = dict()
 reg, lr = 0, 0
 read_metric = 1
-main_method = (model_name in ['gcncsr'])
+main_method = (model_name in ['gcncsr', 'disbpr', 'disgcn'])
 with open(log_path) as f:
     for s in f.readlines():
         x = s.replace(' ', '').strip('\n')
@@ -23,16 +23,14 @@ with open(log_path) as f:
             lr = float(lr[3:])
         elif 'Epoch:' in x:
             if main_method:
-                _, _, train_loss, social_loss, val_loss, test_loss = x.split(',')
+                _, _, train_loss, social_loss = x.split(',')
             else:
-                _, _, train_loss, val_loss, test_loss = x.split(',')
-            train_loss, val_loss, test_loss = float(train_loss[10:]), float(val_loss[8:]), float(test_loss[9:])
+                _, _, train_loss = x.split(',')
+            train_loss = float(train_loss[10:])
             data['train_loss'].append(train_loss)
-            data['val_loss'].append(val_loss)
-            data['test_loss'].append(test_loss)
             read_metric = 1
             if main_method:
-                data['social_loss'].append(float(social_loss[11:]))
+                data['social_loss'].append(float(social_loss[12:]))
         elif 'Recall@' in x and read_metric:
             Recall, NDCG, MRR = x.split(',')
             Recall, NDCG, MRR = float(Recall[10:]), float(NDCG[8:]), float(MRR[7:])
@@ -46,16 +44,14 @@ print('get data done')
 
 for k in model.keys():
     if k[0] > 0:
-        vis = Visdom(port=1946, env='{}_reg{}lr{}-{}'.format(model_name, k[0], k[1], test_name))
+        vis = Visdom(port=1469, env='{}_reg{}lr{}-{}'.format(model_name, k[0], k[1], test_name))
         data = model[k]
         train_loss, val_loss, test_loss = data['train_loss'], data['val_loss'], data['test_loss']
         Recall, NDCG, MRR = np.array(data['Recall']), np.array(data['NDCG']), np.array(data['MRR'])
         X = np.arange(len(train_loss))+1
         vis.line(train_loss, X, win='train loss', opts={'title':'train loss'})
-        vis.line(val_loss, X, win='val loss', opts={'title':'val loss'})
-        vis.line(test_loss, X, win='test loss', opts={'title':'test loss'})
         if main_method:
-            vis.line(data['social_loss'], X, win='train social loss', opts={'title':'train social loss'})
+            vis.line(data['social_loss'], X, win='social loss', opts={'title':'social loss'})
         n = len(Recall)/4
         X = np.linspace(5, 5*n, n)
         idx = np.linspace(1, 4*(n-1)+1, n).astype(np.int)

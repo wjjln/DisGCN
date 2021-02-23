@@ -19,10 +19,13 @@ class disbpr(base_model):
         self.item_social_embedding = tf.Variable(
                 tf.random.normal([self.num_items, self.conf.dimension], stddev=0.01), name='item_social_embedding')
         # self.W = [tfv1.layers.Dense(self.dim, activation=tf.nn.leaky_relu, name='W0', use_bias=True), tfv1.layers.Dense(1, name='W1', use_bias=True)]
-        # self.W = tf.Variable(
-        #         tf.random.normal([self.dim, self.dim], stddev=0.01), name='W')
+        # self.W_u = tf.Variable(
+        #         tf.random.normal([self.dim, self.dim], stddev=0.01), name='W_u')
+        # self.W_i = tf.Variable(
+        #         tf.random.normal([self.dim, self.dim], stddev=0.01), name='W_i')
 
     def Y(self, u, f, i, keepdims=True):
+        # u, f, i = tf.math.l2_normalize(u, -1), tf.math.l2_normalize(f, -1), tf.math.l2_normalize(i, -1)
 
         # def cosine(e1, e2, keepdims=True):
         #     e1 = tf.math.l2_normalize(e1, -1)
@@ -30,12 +33,14 @@ class disbpr(base_model):
         #     return tf.reduce_sum(e1*e2, -1, keepdims=keepdims)
         
         # return tf.reduce_sum(u*i, -1, keepdims=keepdims)*cosine(f, i, keepdims=keepdims)
-
-        return tf.reduce_sum(u*i, -1, keepdims=keepdims) + tf.reduce_sum(f*i, -1, keepdims=keepdims)# + tf.reduce_sum(u*f, -1, keepdims=keepdims)
+        # return cosine(u, i, keepdims=keepdims) + cosine(f, i, keepdims=keepdims) + cosine(u, f, keepdims=keepdims)
+        return tf.reduce_sum(u*i, -1, keepdims=keepdims) + tf.reduce_sum(f*i, -1, keepdims=keepdims) + tf.reduce_sum(u*f, -1, keepdims=keepdims)
+        
+        # return tf.reduce_sum(u*f*i, -1, keepdims=keepdims)
 
         # return tf.reduce_sum(tf.math.maximum(tf.math.maximum(u*i, f*i), u*f), -1, keepdims=keepdims)
 
-        # return -tf.reduce_sum(tf.square((u-f)*i), -1, keepdims=keepdims)
+        # return -tf.reduce_sum(tf.abs((u-f)*i), -1, keepdims=keepdims)
 
         # result = self.W[1](self.W[0](tf.concat([u, f, i], -1)))
         # if not keepdims:
@@ -43,19 +48,21 @@ class disbpr(base_model):
         # return result
 
         # if keepdims:
-        #     u = tf.einsum('ik, kl -> il', u, self.W)
-        #     f = tf.einsum('ik, kl -> il', f, self.W)
-        #     return tf.reduce_sum(tf.square(u+i-f), -1, keepdims=True)
+        #     u = tf.einsum('ik, kl -> il', u, self.W_u)
+        #     f = tf.einsum('ik, kl -> il', f, self.W_u)
+        #     i = tf.einsum('ik, kl -> il', i, self.W_i)
+        #     return -tf.reduce_sum(tf.square(u+i-f), -1, keepdims=True)
         # else:
-        #     u = tf.einsum('ijk, kl -> ijl', u, self.W)
-        #     f = tf.einsum('ijk, kl -> ijl', f, self.W)
-        #     return tf.reduce_sum(tf.square(u+i-f), -1, keepdims=False)
+        #     u = tf.einsum('ijk, kl -> ijl', u, self.W_u)
+        #     f = tf.einsum('ijk, kl -> ijl', f, self.W_u)
+        #     i = tf.einsum('ijk, kl -> ijl', i, self.W_i)
+        #     return -tf.reduce_sum(tf.square(u+i-f), -1, keepdims=False)
     
     def constructTrainGraph(self):
         user_embedding = tf.concat([self.user_embedding, self.user_social_embedding], 1)
         item_embedding = tf.concat([self.item_embedding, self.item_social_embedding], 1)
         self.loss = self.BPRloss(user_embedding, item_embedding)
-        self.predict(user_embedding, item_embedding)
+        self.prediction = self.predict(user_embedding, item_embedding)
         cor_social_embedding = tf.gather(tf.concat([self.user_social_embedding, self.item_social_embedding], 0), self.cor_idx)
         cor_interest_embedding = tf.gather(tf.concat([self.user_embedding, self.item_embedding], 0), self.cor_idx)
         self.cor_loss = self._create_distance_correlation(cor_social_embedding, cor_interest_embedding)
@@ -65,15 +72,15 @@ class disbpr(base_model):
                                 tf.gather(self.item_social_embedding, self.ufi_i)
         emb_j = tf.gather_nd(self.item_social_embedding, self.ufi_j)
         emb_g = tf.gather_nd(self.user_social_embedding, self.ufi_g)
-        ufi_pos_i = self.Y(emb_u, emb_f, emb_i)
+        ufi_pos = self.Y(emb_u, emb_f, emb_i)
         ufi_neg_i = self.Y(tf.expand_dims(emb_u, 1), tf.expand_dims(emb_f, 1), emb_j, keepdims=False)
         # tile_num = tf.constant([1, self.num_negatives, 1], tf.int32)
         # ufi_neg_i = self.Y(tf.tile(tf.expand_dims(emb_u, 1), tile_num), tf.tile(tf.expand_dims(emb_f, 1), tile_num), emb_j, keepdims=False)
-        ufi_pos_f = self.Y(emb_u, emb_i, emb_f)
-        ufi_neg_f = self.Y(tf.expand_dims(emb_u, 1), tf.expand_dims(emb_i, 1), emb_g, keepdims=False)
-        # ufi_neg_f = self.Y(tf.tile(tf.expand_dims(emb_u, 1), tile_num), tf.tile(tf.expand_dims(emb_i, 1), tile_num), emb_g, keepdims=False)
-        self.social_loss = tf.reduce_sum(tf.reduce_mean(tf.nn.softplus(ufi_neg_i-ufi_pos_i), -1)) + tf.reduce_sum(tf.reduce_mean(tf.nn.softplus(ufi_neg_f-ufi_pos_f), -1))
-                            # self.reg*(self.regloss([emb_u, emb_f, emb_i])+self.regloss([emb_j, emb_g])/self.num_negatives)
+        ufi_neg_f = self.Y(tf.expand_dims(emb_u, 1), emb_g, tf.expand_dims(emb_i, 1), keepdims=False)
+        # ufi_neg_f = self.Y(tf.tile(tf.expand_dims(emb_u, 1), tile_num), emb_g, tf.tile(tf.expand_dims(emb_i, 1), tile_num), keepdims=False)
+        # self.social_loss = tf.reduce_sum(tf.reduce_mean(tf.nn.softplus(ufi_neg_i-ufi_pos), -1)) + tf.reduce_sum(tf.reduce_mean(tf.nn.softplus(ufi_neg_f-ufi_pos), -1)) +\
+        self.social_loss = tf.reduce_sum(tf.nn.softplus(tf.reduce_sum(ufi_neg_i-ufi_pos, -1))) + tf.reduce_sum(tf.nn.softplus(tf.reduce_sum(ufi_neg_f-ufi_pos, -1))) +\
+                            self.conf.sreg*(self.regloss([emb_u, emb_f, emb_i])+self.regloss([emb_j, emb_g])/self.num_negatives)
 
         self.opt = tfv1.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
         self.social_opt = tfv1.train.AdamOptimizer(self.conf.social_lr).minimize(self.social_loss)
@@ -88,6 +95,8 @@ class disbpr(base_model):
         # for idx, W in enumerate(self.W):
         #     variables_dict[f'W{idx}/kernel'] = W.kernel
         #     variables_dict[f'W{idx}/bias'] = W.bias
+        # variables_dict['W_u'] = self.W_u
+        # variables_dict['W_i'] = self.W_i
         self.saver = tfv1.train.Saver(variables_dict)
 
     def defineMap(self):

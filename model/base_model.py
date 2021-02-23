@@ -70,7 +70,7 @@ class base_model(object):
         if emb_i is None:
             emb_i = self.item_embedding
         emb_u_gather = tf.gather(emb_u, self.user_input)
-        self.prediction = tf.matmul(emb_u_gather, tf.transpose(emb_i))
+        return tf.matmul(emb_u_gather, tf.transpose(emb_i))
 
     def BPRloss(self, emb_u=None, emb_i=None, reg=True):
         if emb_u is None:

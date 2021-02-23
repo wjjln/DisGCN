@@ -54,7 +54,8 @@ class diffnet(base_model):
         self.u_emb = user_embedding_from_consumed_items + u_emb
         # + tf.add_n(user_embedding_last_list)
 
-        self.predict(self.u_emb)
+        # self.prediction = self.predict(self.u_emb)
+        self.prediction = self.predict(tf.transpose(tf.gather(tf.transpose(self.u_emb), tf.range(32))), tf.transpose(tf.gather(tf.transpose(self.item_embedding), tf.range(32))))
         self.loss = self.BPRloss(self.u_emb)
         # + tf.losses.get_regularization_loss()
         self.Adam = tfv1.train.AdamOptimizer(self.learning_rate)

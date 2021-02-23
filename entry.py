@@ -29,7 +29,7 @@ if __name__ == "__main__":
     config_path = os.path.join(os.getcwd(), f'conf/{data_name}/{data_name}_{model_name}.ini')
     conf = ParserConf(config_path)
     conf.parserConf()
-    setproctitle.setproctitle('{}_{}_{}'.format(conf.data_name, conf.model_name, conf.test_name))
+    setproctitle.setproctitle('{}_{}_{}@linian'.format(conf.data_name, conf.model_name, conf.test_name))
     data = DataUtil(conf)
     starter.start(conf, data, model_name)
     # executeTrainModel(config_path, model_name)

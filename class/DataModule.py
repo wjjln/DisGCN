@@ -93,10 +93,6 @@ class DataModule():
                 self.data_dict['cor_idx'] = self.cor_idx
             if self.conf.model_name in ['disengcn', 'disbpr', 'disgcn'] and 'train' in self.filename:
                 self.data_dict['cor_idx'] = self.cor_idx
-            if self.conf.model_name in ['csr']:
-                self.data_dict['u_input'] = self.u_input
-                self.data_dict['f_input'] = self.f_input
-                self.data_dict['i_input'] = self.i_input
             if not self.terminal_flag and self.conf.model_name in ['disbpr', 'disgcn'] and self.conf.social_loss:
                 self.loss_turn = 1
         else:
